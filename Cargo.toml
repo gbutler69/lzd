@@ -1,0 +1,19 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+authors = ["Gerald E. Butler <gerald.edward.butler@gmail.com>"]
+
+[workspace.dependencies]
+anyhow = "1.0.96"
+dotenvy = "0.15.7"
+jiff = "0.2.1"
+thiserror = "2.0.11"
+tokio = { version = "1.43.0", features = ["macros"] }
+uuid = "1.14.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+

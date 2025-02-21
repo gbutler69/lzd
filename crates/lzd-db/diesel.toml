@@ -1,0 +1,5 @@
+[print_schema]
+schema = "lzd"
+file = "src/schema.rs"
+with_docs = true
+generate_missing_sql_type_definitions = true
