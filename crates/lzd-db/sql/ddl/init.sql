@@ -57,7 +57,7 @@ comment on table lzd.customer_type is 'Contains the list of available Customer T
 create table if not exists lzd.user (
 	id serial primary key,
 	logon_name varchar(64) not null unique,
-	pass_phrase bytea not null,
+	pass_phrase varchar(1024) not null,
 	created timestamp with time zone not null,
 	updated timestamp with time zone not null	
 );

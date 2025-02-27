@@ -1,0 +1,55 @@
+<html>
+
+<head>
+    <title>Register</title>
+    <style>
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <ul>
+        {% for message in messages %}
+        <li>
+            <span><strong>{{ message }}</strong></span>
+        </li>
+        {% endfor %}
+    </ul>
+    <form method="post">
+        <fieldset>
+            <legend>Create New Account</legend>
+            <p>
+                <label for="user_name" title="Choose a user name for your account">User Name</label>
+                <input name="user_name" id="user_name" />
+            </p>
+            <p>
+                <label for="pass_phrase"
+                    title="Enter a secure pass phrase consisting of at least 5 words and an overall length of at least 20 characters">Pass
+                    Phrase</label>
+                <input name="pass_phrase" id="pass_phrase" type="password" />
+            </p>
+            <p>
+                <label for="repeat_pass_phrase"
+                    title="Re-Enter your Pass Phrase to ensure you've entered it correctly">Re-Enter Pass Phrase (for
+                    confirmation)</label>
+                <input name="repeat_pass_phrase" id="repeat_pass_phrase" type="password" />
+            </p>
+            <p>
+                <label for="email" title="Enter your Email Address">Email Address</label>
+                <input name="email" id="email" />
+            </p>
+            <p>
+                <label for="repeat_email"
+                    title="Re-Enter your Email Address to ensure you've entered it correctly">Re-Enter Email Address
+                    (for confirmation)</label>
+                <input name="repeat_email" id="repeat_email" />
+            </p>
+        </fieldset>
+        <input type="submit" value="register" />
+    </form>
+</body>
+
+</html>

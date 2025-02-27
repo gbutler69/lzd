@@ -1,0 +1,9 @@
+master-secret = ""
+
+[database]
+db-url = "postgres://lzdadmin:lzadmin1@localhost/postgres"
+max-open = 20
+max-idle = 4
+max-lifetime = "4 hours"
+max-idle-lifetime = "15 minutes"
+timeout-for-get = "30 seconds"

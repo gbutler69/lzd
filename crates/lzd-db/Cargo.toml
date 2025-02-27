@@ -8,16 +8,21 @@ authors.workspace = true
 
 # Workspace Dependencies
 
+arc-swap.workspace = true
 dotenvy.workspace = true
+humantime-serde.workspace = true
 jiff.workspace = true
+thiserror.workspace = true
+serde.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 
 # Other Dependencies
 
 diesel = { version = "2.2", features = ["postgres", "uuid"] }
-diesel-async = { version = "0.5", features = ["postgres"] }
+diesel-async = { version = "0.5", features = ["postgres", "pool", "mobc"] }
 jiff-diesel = { version = "0.1", features = ["postgres"] }
+mobc = "0.8.5"
 
 [dev-dependencies]
 

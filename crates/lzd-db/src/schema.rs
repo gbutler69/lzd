@@ -100,7 +100,8 @@ pub mod lzd {
             #[max_length = 64]
             logon_name -> Varchar,
             /// The pass phrase the for the user in an application managed encrypted form
-            pass_phrase -> Bytea,
+            #[max_length = 1024]
+            pass_phrase -> Varchar,
             created -> Timestamptz,
             updated -> Timestamptz,
         }

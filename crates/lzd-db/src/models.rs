@@ -95,7 +95,17 @@ pub struct PersonUser {
 pub struct User {
     pub id: i32,
     pub logon_name: String,
-    pub pass_phrase: Vec<u8>,
+    pub pass_phrase: String,
+    pub created: jiff_diesel::Timestamp,
+    pub updated: jiff_diesel::Timestamp,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::lzd::user)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewUser {
+    pub logon_name: String,
+    pub pass_phrase: String,
     pub created: jiff_diesel::Timestamp,
     pub updated: jiff_diesel::Timestamp,
 }
@@ -106,6 +116,18 @@ pub struct User {
 #[diesel(belongs_to(User))]
 pub struct UserEmail {
     pub id: i32,
+    pub user_id: i32,
+    pub encrypted_email_address: Vec<u8>,
+    pub email_type_id: i32,
+    pub created: jiff_diesel::Timestamp,
+    pub updated: jiff_diesel::Timestamp,
+    pub updated_by_user: i32,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::lzd::user_email)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct NewUserEmail {
     pub user_id: i32,
     pub encrypted_email_address: Vec<u8>,
     pub email_type_id: i32,
