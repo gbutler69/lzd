@@ -102,6 +102,7 @@ pub mod lzd {
             /// The pass phrase the for the user in an application managed encrypted form
             #[max_length = 1024]
             pass_phrase -> Varchar,
+            secret -> Bytea,
             created -> Timestamptz,
             updated -> Timestamptz,
         }

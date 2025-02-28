@@ -4,6 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct Cache {
+    pub customer_type: Arc<TypeCache<CustomerTypeName>>,
     pub email_type: Arc<TypeCache<EmailTypeName>>,
     pub organization_type: Arc<TypeCache<OrganizationTypeName>>,
     pub phone_type: Arc<TypeCache<PhoneTypeName>>,
@@ -12,6 +13,7 @@ pub struct Cache {
 impl Cache {
     pub fn new() -> Self {
         Self {
+            customer_type: Arc::new(TypeCache::new()),
             email_type: Arc::new(TypeCache::new()),
             organization_type: Arc::new(TypeCache::new()),
             phone_type: Arc::new(TypeCache::new()),
@@ -22,6 +24,8 @@ impl Cache {
         &self,
         mut conn: mobc::Connection<AsyncDieselConnectionManager<AsyncPgConnection>>,
     ) -> Result<(), Error> {
+        self.customer_type
+            .populate(CustomerTypeName::load_from_db(&mut conn).await?);
         self.email_type
             .populate(EmailTypeName::load_from_db(&mut conn).await?);
         self.organization_type
@@ -55,6 +59,13 @@ impl<T: Eq + std::hash::Hash> TypeCache<T> {
     pub fn id_of(&self, name: T) -> Result<i32, Error> {
         self.0.load().get(&name).copied().ok_or(Error::DoesNotExist)
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum CustomerTypeName {
+    Individual,
+    Organization,
+    Other(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -121,6 +132,12 @@ macro_rules! impl_type_name {
             }
         }
     };
+}
+
+impl_type_name! {
+    Enum CustomerTypeName, Table customer_type, Model CustomerType;
+    Individual => "Individual",
+    Organization => "Organization"
 }
 
 impl_type_name! {

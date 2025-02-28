@@ -1,8 +1,4 @@
-use aes_gcm_siv::Aes256GcmSiv;
-use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
-    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
-};
+use crate::cipher::{Cipher, EncryptedContentAndKey};
 use askama_axum::Template;
 use axum::{
     extract::{Query, State},
@@ -19,10 +15,14 @@ use std::{hash::Hasher, string::FromUtf8Error, sync::Arc};
 #[derive(Clone, Debug)]
 pub struct BackEnd {
     db: lzd_db::Store,
+    cipher: Arc<Cipher>,
 }
 
-pub(crate) fn create_backend(database: lzd_db::Store) -> BackEnd {
-    BackEnd { db: database }
+pub(crate) fn create_backend(database: lzd_db::Store, cipher: Arc<Cipher>) -> BackEnd {
+    BackEnd {
+        db: database,
+        cipher,
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -52,10 +52,10 @@ impl From<lzd_db::models::User> for User {
         let mut hasher = rs_sha512::Sha512Hasher::default();
         hasher.write(pass_phrase.as_bytes());
         let _ = hasher.finish();
-        let final_result = HasherContext::finish(&mut hasher);
+        let session_hash = HasherContext::finish(&mut hasher);
         Self {
             id: id,
-            session_auth_hash: final_result.into(),
+            session_auth_hash: session_hash.into(),
         }
     }
 }
@@ -66,12 +66,8 @@ pub enum Error {
     UserDb(#[from] lzd_db::Error),
     #[error("Stored pass phrase is not valid utf8: {0}")]
     StoredPassPhraseInvalidUtf8(#[from] FromUtf8Error),
-    #[error("Stored pass phrase could not be parsed: {0}")]
-    StoredPassPhraseUnableToParse(argon2::password_hash::Error),
     #[error("Pass phrase could not be verified: {0}")]
-    PassPhraseUnableToVerify(argon2::password_hash::Error),
-    #[error("Pass phrase hash failed: {0}")]
-    PassPhraseHash(argon2::password_hash::Error),
+    PassPhraseUnableToVerify(#[from] crate::cipher::Error),
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -91,16 +87,19 @@ impl AuthnBackend for BackEnd {
         &self,
         credentials: Self::Credentials,
     ) -> Result<Option<Self::User>, Self::Error> {
-        let user = self
+        let user = match self
             .db
             .load_user_by_logon_name(&credentials.logon_name)
-            .await?;
-        let parsed_pass_phrase = PasswordHash::new(&user.pass_phrase)
-            .map_err(|err| Error::StoredPassPhraseUnableToParse(err))?;
-        Argon2::default()
-            .verify_password(credentials.pass_phrase.as_bytes(), &parsed_pass_phrase)
-            .map_err(|err| Error::PassPhraseUnableToVerify(err))?;
-        Ok(Some(user.into()))
+            .await
+        {
+            Ok(Some(user)) => user,
+            Ok(None) => return Ok(None),
+            Err(err) => return Err(err.into()),
+        };
+        self.cipher
+            .verify_pass_phrase(&credentials.pass_phrase, &user.pass_phrase)
+            .map(move |verified| if verified { Some(user.into()) } else { None })
+            .map_err(Into::into)
     }
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
@@ -108,7 +107,7 @@ impl AuthnBackend for BackEnd {
             .load_user_by_id(*user_id)
             .await
             .map_err(Into::into)
-            .map(|v| Some(v.into()))
+            .map(|v| v.map(Into::into))
     }
 }
 
@@ -155,19 +154,31 @@ pub mod register_new_user {
         (messages, user_name_valid) = validate_user_name(messages, &user_name);
         (messages, pass_phrase, pass_phrase_valid) =
             validate_pass_phrase(messages, pass_phrase, &repeat_pass_phrase);
-        (messages, email_valid) = validate_email(messages, &email, &repeat_email);
+        (_, email_valid) = validate_email(messages, &email, &repeat_email);
         if user_name_valid && pass_phrase_valid && email_valid {
-            let hashed_pass_phrase = match hash_pass_phrase(&pass_phrase) {
+            let hashed_pass_phrase = match app_state.cipher.hash_passphrase(pass_phrase.as_bytes())
+            {
                 Ok(hashed_pass_phrase) => hashed_pass_phrase,
                 Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             };
-            let encrypted_email_address = match encrypt_email(app_state.cipher.clone(), &email) {
-                Ok(encrypted_email_address) => encrypted_email_address,
+            let EncryptedContentAndKey {
+                encrypted_content: encrypted_email_address,
+                encrypted_key: encrypted_secret,
+            } = match app_state
+                .cipher
+                .encrypt_content_with_new_key_and_supply_encrypted_content_and_key(email.as_bytes())
+            {
+                Ok(encrypted_content_and_key) => encrypted_content_and_key,
                 Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
             };
             match app_state
                 .store
-                .register_user(user_name, hashed_pass_phrase, encrypted_email_address)
+                .register_user(
+                    user_name,
+                    hashed_pass_phrase,
+                    encrypted_email_address,
+                    encrypted_secret,
+                )
                 .await
             {
                 Ok((_, _)) => Redirect::to("/hello-logged-in").into_response(),
@@ -240,11 +251,11 @@ pub mod register_new_user {
 
     fn validate_email(mut messages: Messages, email: &str, repeat_email: &str) -> (Messages, bool) {
         let mut valid = true;
-        if let Some((local, domain)) = email.split_once('@') {
+        if let Some((_, domain)) = email.split_once('@') {
             if domain.contains(|c| c == '@') {
                 valid = false;
                 messages = messages
-                    .error("email address is invalid - contains an '@' symbol in the domain name");
+                    .error("email address is invalid - contains an '@' symbol in the domain name or '@' symbol in name");
             }
         } else {
             valid = false;
@@ -256,16 +267,6 @@ pub mod register_new_user {
         }
         (messages, valid)
     }
-
-    fn hash_pass_phrase(pass_phrase: &str) -> Result<String, Error> {
-        let salt = SaltString::generate(&mut OsRng);
-        Argon2::default()
-            .hash_password(pass_phrase.as_bytes(), &salt)
-            .map(|h| h.to_string())
-            .map_err(|err| Error::PassPhraseHash(err))
-    }
-
-    fn encrypt_email(cipher: Arc<Aes256GcmSiv>, email: &str) -> Result<Vec<u8>, Error> {}
 }
 
 pub mod login {
@@ -312,9 +313,11 @@ pub mod login {
                 };
                 return Redirect::to(&login_url).into_response();
             }
-            Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            Err(_) => {
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
         };
-        if auth_session.login(&user).await.is_err() {
+        if let Err(_) = auth_session.login(&user).await {
             return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
         messages.success("Successfully logged in");

@@ -1,4 +1,4 @@
-master-secret = ""
+master-secret = "1kY4Zcx/Np74XZnI/G8h1vq74NwrtpLF3PW96g9RWo0"
 
 [database]
 db-url = "postgres://lzdadmin:lzadmin1@localhost/postgres"

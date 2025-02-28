@@ -1,6 +1,16 @@
 use diesel::prelude::*;
 
 #[derive(Identifiable, Queryable, Selectable)]
+#[diesel(table_name = crate::schema::lzd::customer_type)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct CustomerType {
+    pub id: i32,
+    pub name: String,
+    pub created: jiff_diesel::Timestamp,
+    pub updated: jiff_diesel::Timestamp,
+}
+
+#[derive(Identifiable, Queryable, Selectable)]
 #[diesel(table_name = crate::schema::lzd::email_type)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct EmailType {
@@ -96,6 +106,7 @@ pub struct User {
     pub id: i32,
     pub logon_name: String,
     pub pass_phrase: String,
+    pub secret: Vec<u8>,
     pub created: jiff_diesel::Timestamp,
     pub updated: jiff_diesel::Timestamp,
 }
@@ -106,6 +117,7 @@ pub struct User {
 pub struct NewUser {
     pub logon_name: String,
     pub pass_phrase: String,
+    pub secret: Vec<u8>,
     pub created: jiff_diesel::Timestamp,
     pub updated: jiff_diesel::Timestamp,
 }

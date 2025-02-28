@@ -87,24 +87,34 @@ impl Store {
         self.pool.get().await.map_err(Into::into)
     }
 
-    pub async fn load_user_by_logon_name(&self, name: &str) -> Result<models::User, Error> {
+    pub async fn load_user_by_logon_name(&self, name: &str) -> Result<Option<models::User>, Error> {
         use schema::lzd::user::dsl::*;
         let mut conn = self.connection().await?;
-        user.filter(logon_name.eq(name))
+        match user
+            .filter(logon_name.eq(name))
             .select(models::User::as_select())
             .first(&mut conn)
             .await
-            .map_err(Into::into)
+        {
+            Ok(loaded_user) => Ok(Some(loaded_user)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(err) => Err(err.into()),
+        }
     }
 
-    pub async fn load_user_by_id(&self, user_id: i32) -> Result<models::User, Error> {
+    pub async fn load_user_by_id(&self, user_id: i32) -> Result<Option<models::User>, Error> {
         use schema::lzd::user::dsl::*;
         let mut conn = self.connection().await?;
-        user.filter(id.eq(user_id))
+        match user
+            .filter(id.eq(user_id))
             .select(models::User::as_select())
             .first(&mut conn)
             .await
-            .map_err(Into::into)
+        {
+            Ok(loaded_user) => Ok(Some(loaded_user)),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(err) => Err(err.into()),
+        }
     }
 
     pub async fn register_user(
@@ -112,11 +122,13 @@ impl Store {
         user_name: String,
         hashed_pass_phrase: String,
         encrypted_email_address: Vec<u8>,
+        encrypted_secret: Vec<u8>,
     ) -> Result<(models::User, models::UserEmail), Error> {
         let now = jiff::Timestamp::now().into();
         let new_user = models::NewUser {
             logon_name: user_name,
             pass_phrase: hashed_pass_phrase,
+            secret: encrypted_secret,
             created: now,
             updated: now,
         };

@@ -13,6 +13,21 @@ create table if not exists  lzd."__diesel_schema_migrations" (
 -- Type Tables
 --
 
+create table if not exists lzd.customer_type (
+	id serial primary key,
+	name varchar(128) not null unique,
+	created timestamp with time zone not null,
+	updated timestamp with time zone not null
+);
+
+comment on table lzd.customer_type is 'Contains the list of available Customer Types (e.g. Individual, Organization, etc.)';
+
+insert into lzd.customer_type 
+	( name, created, updated )
+values
+	( 'Individual', now(), now() ),
+	( 'Organization', now(), now() );
+
 create table if not exists lzd.email_type (
 	id serial primary key,
 	name varchar(128) not null unique,
@@ -22,14 +37,12 @@ create table if not exists lzd.email_type (
 
 comment on table lzd.email_type is 'Contains the list of available Email Types (e.g. Home, Work, Primary, etc.)';
 
-create table if not exists lzd.phone_type (
-	id serial primary key,
-	name varchar(128) not null unique,
-	created timestamp with time zone not null,
-	updated timestamp with time zone not null
-);
-
-comment on table lzd.phone_type is 'Contains the list of available Phone Types (e.g. Home, Work, Mobile, etc.)';
+insert into lzd.email_type 
+	( name, created, updated )
+values
+	( 'Primary', now(), now() ),
+	( 'Home', now(), now() ),
+	( 'Work', now(), now() );
 
 create table if not exists lzd.organization_type (
 	id serial primary key,
@@ -40,14 +53,27 @@ create table if not exists lzd.organization_type (
 
 comment on table lzd.organization_type is 'Contains the list of available Organization Types (e.g. LLC, S-Corp, Corporation, Non-Governmental Organization (NGO), etc.)';
 
-create table if not exists lzd.customer_type (
+insert into lzd.organization_type 
+	( name, created, updated )
+values
+	( 'Corporation', now(), now() );
+
+create table if not exists lzd.phone_type (
 	id serial primary key,
 	name varchar(128) not null unique,
 	created timestamp with time zone not null,
 	updated timestamp with time zone not null
 );
 
-comment on table lzd.customer_type is 'Contains the list of available Customer Types (e.g. Individual, Organization, etc.)';
+comment on table lzd.phone_type is 'Contains the list of available Phone Types (e.g. Home, Work, Mobile, etc.)';
+
+insert into lzd.phone_type 
+	( name, created, updated )
+values
+	( 'Primary', now(), now() ),
+	( 'Home', now(), now() ),
+	( 'Work', now(), now() ),
+	( 'Mobile', now(), now() );
 
 
 --
@@ -58,6 +84,7 @@ create table if not exists lzd.user (
 	id serial primary key,
 	logon_name varchar(64) not null unique,
 	pass_phrase varchar(1024) not null,
+	secret bytea not null,
 	created timestamp with time zone not null,
 	updated timestamp with time zone not null	
 );
