@@ -20,8 +20,8 @@ pub async fn main() -> anyhow::Result<()> {
         .await
         .context("creating database store")?;
     let session_layer = SessionManagerLayer::new(MemoryStore::default());
-    let backend = login::create_backend(store.clone(), cipher.clone());
-    let auth_layer = AuthManagerLayerBuilder::new(backend, session_layer).build();
+    let login_backend = login::create_backend(store.clone(), cipher.clone());
+    let auth_layer = AuthManagerLayerBuilder::new(login_backend, session_layer).build();
     let app_state = AppState { store, cipher };
     let app = routes::setup(app_state, auth_layer);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
