@@ -14,25 +14,37 @@ lzd-db = { version = "*", path = "crates/lzd-db" }
 # from crates.io
 
 aes-gcm-siv = "0.11.1"
-anyhow = "1.0.96"
+anyhow = "1.0.97"
 arc-swap = "1.7.1"
 askama = "0.12.1"
 askama_axum = "0.4.0"
-async-trait = "0.1.86"
+async-trait = "0.1.87"
 axum = "0.8.1"
 base64 = "0.22.1"
+check-if-email-exists = "0.9.1"
+cryptid-rs = "0.1.2"
 crypto-common = "0.1.6"
 dotenvy = "0.15.7"
+email_address = "0.2.9"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 itertools = "0.14.0"
 jiff = "0.2.1"
+mail-builder = "0.4.1"
+mail-parser = "0.10.2"
+mail-send = "0.5.0"
 rand = "0.9.0"
 rs_sha512 = "0.1.3"
+scoped-futures = "0.1.4"
 serde = { version = "1.0.218", features = ["derive"] }
-serde_json = "1.0.139"
-thiserror = "2.0.11"
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+serde_json = "1.0.140"
+thiserror = "2.0.12"
+tokio = { version = "1.43.0", features = [
+    "macros",
+    "rt-multi-thread",
+    "signal",
+] }
+tokio-util = "0.7.13"
 toml = "0.8.20"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

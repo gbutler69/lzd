@@ -1,43 +1,33 @@
-<html>
+{% extends "base.html" %}
 
-<head>
-    <title>Login</title>
-    <style>
-        label {
-            display: block;
-            margin-bottom: 5px;
-        }
-    </style>
-</head>
+{% block title %}Log-In{% endblock %}
 
-<body>
-    <ul>
-        {% for message in messages %}
-        <li>
-            <span><strong>{{ message }}</strong></span>
-        </li>
-        {% endfor %}
-    </ul>
-    <form method="post">
-        <fieldset>
-            <legend>User login</legend>
-            <p>
-                <label for="logon_name">User Name</label>
-                <input name="logon_name" id="logon_name" />
-            </p>
-            <p>
-                <label for="pass_phrase">Pass Phrase</label>
-                <input name="pass_phrase" id="pass_phrase" type="password" />
-            </p>
-        </fieldset>
-        <input type="submit" value="login" />
-        {% if let Some(next) = next %}
-        <input type="hidden" name="next" value="{{next}}" />
-        {% endif %}
-    </form>
-    <p>
-        <a href="/register" title="If you don't already have an account...">Create New Account</a>
-    </p>
-</body>
-
-</html>
+{% block content %}
+<ul>
+    {% for message in messages %}
+    <li>
+        <span><strong>{{ message }}</strong></span>
+    </li>
+    {% endfor %}
+</ul>
+<form method="post">
+    <fieldset>
+        <legend>User login</legend>
+        <p>
+            <label for="logon_name">User Name</label>
+            <input name="logon_name" id="logon_name" />
+        </p>
+        <p>
+            <label for="pass_phrase">Pass Phrase</label>
+            <input name="pass_phrase" id="pass_phrase" type="password" />
+        </p>
+        <input type="submit" value="Log-In" />
+        <p>
+            <a href="/register" title="If you don't already have an account...">Create New Account</a>
+        </p>
+    </fieldset>
+    {% if let Some(next) = next %}
+    <input type="hidden" name="next" value="{{next}}" />
+    {% endif %}
+</form>
+{% endblock %}

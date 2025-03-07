@@ -10,7 +10,7 @@ use axum_messages::{Message, Messages};
 use http::StatusCode;
 use itertools::Itertools;
 use rs_sha512::HasherContext;
-use std::{hash::Hasher, string::FromUtf8Error, sync::Arc};
+use std::{hash::Hasher, str::FromStr, string::FromUtf8Error, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct BackEnd {
@@ -154,35 +154,41 @@ pub mod register_new_user {
         (messages, user_name_valid) = validate_user_name(messages, &user_name);
         (messages, pass_phrase, pass_phrase_valid) =
             validate_pass_phrase(messages, pass_phrase, &repeat_pass_phrase);
-        (_, email_valid) = validate_email(messages, &email, &repeat_email);
+        (messages, email_valid) = validate_email(messages, &email, &repeat_email);
         if user_name_valid && pass_phrase_valid && email_valid {
-            let hashed_pass_phrase = match app_state.cipher.hash_passphrase(pass_phrase.as_bytes())
-            {
-                Ok(hashed_pass_phrase) => hashed_pass_phrase,
-                Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            };
-            let EncryptedContentAndKey {
-                encrypted_content: encrypted_email_address,
-                encrypted_key: encrypted_secret,
-            } = match app_state
-                .cipher
-                .encrypt_content_with_new_key_and_supply_encrypted_content_and_key(email.as_bytes())
-            {
-                Ok(encrypted_content_and_key) => encrypted_content_and_key,
-                Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-            };
-            match app_state
-                .store
-                .register_user(
-                    user_name,
-                    hashed_pass_phrase,
-                    encrypted_email_address,
-                    encrypted_secret,
-                )
-                .await
-            {
-                Ok((_, _)) => Redirect::to("/hello-logged-in").into_response(),
-                Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            if email_nonexistent_or_suspicious(&email).await {
+                messages.error("invalid or unvavailable email address");
+                Redirect::to("/register").into_response()
+            } else {
+                let hashed_pass_phrase =
+                    match app_state.cipher.hash_passphrase(pass_phrase.as_bytes()) {
+                        Ok(hashed_pass_phrase) => hashed_pass_phrase,
+                        Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+                    };
+                let EncryptedContentAndKey {
+                    encrypted_content: encrypted_email_address,
+                    encrypted_key: encrypted_secret,
+                } = match app_state
+                    .cipher
+                    .encrypt_content_with_new_key_and_supply_encrypted_content_and_key(
+                        email.as_bytes(),
+                    ) {
+                    Ok(encrypted_content_and_key) => encrypted_content_and_key,
+                    Err(_) => return StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+                };
+                match app_state
+                    .store
+                    .register_user(
+                        user_name,
+                        hashed_pass_phrase,
+                        encrypted_email_address,
+                        encrypted_secret,
+                    )
+                    .await
+                {
+                    Ok((_, _)) => Redirect::to("/main").into_response(),
+                    Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+                }
             }
         } else {
             Redirect::to("/register").into_response()
@@ -200,9 +206,13 @@ pub mod register_new_user {
             valid = false;
             messages = messages.error("user name must be at least 4 characters in length");
         }
-        if username.chars().count() > 64 {
+        if username.chars().count() > 48 {
             valid = false;
-            messages = messages.error("user name must be no more than 64 characters in length");
+            messages = messages.error("user name must be no more than 48 characters in length");
+        }
+        if username.len() > 64 {
+            valid = false;
+            messages = messages.error("user name too long");
         }
         (messages, valid)
     }
@@ -251,21 +261,24 @@ pub mod register_new_user {
 
     fn validate_email(mut messages: Messages, email: &str, repeat_email: &str) -> (Messages, bool) {
         let mut valid = true;
-        if let Some((_, domain)) = email.split_once('@') {
-            if domain.contains(|c| c == '@') {
-                valid = false;
-                messages = messages
-                    .error("email address is invalid - contains an '@' symbol in the domain name or '@' symbol in name");
-            }
-        } else {
-            valid = false;
-            messages = messages.error("email address must contain an '@' character")
-        }
         if email != repeat_email {
             valid = false;
             messages = messages.error("email entries don't match each other");
         }
+        match email_address::EmailAddress::from_str(email) {
+            Ok(_) => (),
+            Err(err) => {
+                valid = false;
+                messages = messages.error(format!("email invalid: {err}"));
+            }
+        }
         (messages, valid)
+    }
+
+    async fn email_nonexistent_or_suspicious(email: &str) -> bool {
+        use check_if_email_exists::*;
+        let result = check_email(&CheckEmailInput::new(email.to_owned())).await;
+        result.is_reachable != Reachable::Safe
     }
 }
 
@@ -324,7 +337,7 @@ pub mod login {
         if let Some(ref next) = creds.next {
             Redirect::to(next)
         } else {
-            Redirect::to("/hello-logged-in")
+            Redirect::to("/main")
         }
         .into_response()
     }
@@ -333,11 +346,10 @@ pub mod login {
 pub mod logout {
     use super::*;
 
-    pub async fn get() -> impl IntoResponse {
-        todo!()
-    }
-
-    pub async fn post() -> impl IntoResponse {
-        todo!()
+    pub async fn get(mut auth_session: AuthSession<BackEnd>) -> impl IntoResponse {
+        match auth_session.logout().await {
+            Ok(_) => Redirect::to("/").into_response(),
+            Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
     }
 }

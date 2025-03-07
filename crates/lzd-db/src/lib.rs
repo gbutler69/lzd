@@ -4,13 +4,14 @@ use diesel_async::{
         mobc::{Builder, Pool},
         AsyncDieselConnectionManager,
     },
-    scoped_futures::ScopedFutureExt,
+    scoped_futures::{ScopedBoxFuture, ScopedFutureExt},
     AsyncConnection, AsyncPgConnection, RunQueryDsl,
 };
 use std::time::Duration;
 
 pub mod models;
 mod schema;
+mod sql_functions;
 #[cfg(test)]
 mod tests;
 mod types_cache;
@@ -23,6 +24,10 @@ pub enum Error {
     Result(#[from] diesel::result::Error),
     #[error("type cache: {0}")]
     TypeCache(#[from] types_cache::Error),
+    #[error("Other General: {0}")]
+    OtherGeneral(String),
+    #[error("Skipped")]
+    Skipped,
 }
 
 #[derive(Clone, Debug)]
@@ -89,9 +94,10 @@ impl Store {
 
     pub async fn load_user_by_logon_name(&self, name: &str) -> Result<Option<models::User>, Error> {
         use schema::lzd::user::dsl::*;
+        use sql_functions::lower;
         let mut conn = self.connection().await?;
         match user
-            .filter(logon_name.eq(name))
+            .filter(lower(logon_name).eq(lower(name)))
             .select(models::User::as_select())
             .first(&mut conn)
             .await
@@ -153,6 +159,8 @@ impl Store {
                             .types_cache
                             .email_type
                             .id_of(types_cache::EmailTypeName::Primary)?,
+                        valid: None,
+                        validation_id: None,
                         created: now,
                         updated: now,
                         updated_by_user: new_user.id,
@@ -172,5 +180,69 @@ impl Store {
             })
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn list_unverified_user_emails(
+        &self,
+    ) -> Result<Vec<(models::UserMainFields, models::UserEmailMainFields)>, Error> {
+        use schema::lzd::{user, user_email};
+        let mut conn = self.connection().await?;
+        let unverified_emails = user::table
+            .inner_join(user_email::table)
+            .filter(
+                user_email::valid
+                    .is_null()
+                    .and(user_email::validation_id.is_null()),
+            )
+            .select((
+                models::UserMainFields::as_select(),
+                models::UserEmailMainFields::as_select(),
+            ))
+            .load(&mut conn)
+            .await?;
+        Ok(unverified_emails)
+    }
+
+    pub async fn record_verification_email<'a, F>(
+        &self,
+        email_id: i32,
+        validation_id: i32,
+        callback: F,
+    ) -> Result<(), Error>
+    where
+        F: FnOnce() -> ScopedBoxFuture<'a, 'a, Result<(), String>> + Send + 'a,
+    {
+        let now: jiff_diesel::Timestamp = jiff::Timestamp::now().into();
+        let result = self
+            .connection()
+            .await?
+            .transaction(move |mut conn| {
+                use schema::lzd::user_email;
+                async move {
+                    match diesel::update(user_email::table)
+                        .filter(
+                            user_email::id
+                                .eq(email_id)
+                                .and(user_email::valid.is_null())
+                                .and(user_email::validation_id.is_null()),
+                        )
+                        .set((
+                            user_email::valid.eq(false),
+                            user_email::validation_id.eq(validation_id),
+                            user_email::updated.eq(now),
+                            user_email::updated_by_user.eq(user_email::user_id),
+                        ))
+                        .execute(&mut conn)
+                        .await
+                    {
+                        Ok(0) => Err(Error::Skipped),
+                        Ok(_) => callback().await.map_err(|err| Error::OtherGeneral(err)),
+                        Err(err) => Err(err.into()),
+                    }
+                }
+                .scope_boxed()
+            })
+            .await;
+        result
     }
 }

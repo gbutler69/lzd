@@ -1,0 +1,17 @@
+{% extends "base.txt" %}
+
+{% block content %}
+Hello {{user_name}},
+
+In order to verify your email address you must enter the following code at the prompt in your browser: {{validation_id}}.
+
+If you have navigated away from the prompt within your browser, then visit the following URL:
+
+  * http:/localhost/verify-email/{{encoded_email_id}}
+
+to be prompted for the verification code above.
+
+Kind regards,
+
+The Email Team!
+{% endblock %}

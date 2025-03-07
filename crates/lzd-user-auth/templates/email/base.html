@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    {% block headstyle %}{% endblock %}
+    <style>
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div id="base-header-content" style="clear:both"></div>
+    <div id="base-left-content" style="float:left"></div>
+    <div id="base-content" style="float:left">
+        {% block content %}<p>Placeholder content</p>{% endblock %}
+    </div>
+    <div id="base-right-content" style="float:left"></div>
+    <div id="base-footer-content" style="clear:both"></div>
+</body>
+
+</html>

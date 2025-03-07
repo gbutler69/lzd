@@ -122,6 +122,15 @@ pub struct NewUser {
     pub updated: jiff_diesel::Timestamp,
 }
 
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = crate::schema::lzd::user)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct UserMainFields {
+    pub id: i32,
+    pub logon_name: String,
+    pub secret: Vec<u8>,
+}
+
 #[derive(Identifiable, Queryable, Selectable, Associations)]
 #[diesel(table_name = crate::schema::lzd::user_email)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -131,6 +140,8 @@ pub struct UserEmail {
     pub user_id: i32,
     pub encrypted_email_address: Vec<u8>,
     pub email_type_id: i32,
+    pub valid: Option<bool>,
+    pub validation_id: Option<i32>,
     pub created: jiff_diesel::Timestamp,
     pub updated: jiff_diesel::Timestamp,
     pub updated_by_user: i32,
@@ -143,9 +154,20 @@ pub struct NewUserEmail {
     pub user_id: i32,
     pub encrypted_email_address: Vec<u8>,
     pub email_type_id: i32,
+    pub valid: Option<bool>,
+    pub validation_id: Option<i32>,
     pub created: jiff_diesel::Timestamp,
     pub updated: jiff_diesel::Timestamp,
     pub updated_by_user: i32,
+}
+
+#[derive(Queryable, Selectable)]
+#[diesel(table_name = crate::schema::lzd::user_email)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct UserEmailMainFields {
+    pub id: i32,
+    pub encrypted_email_address: Vec<u8>,
+    pub email_type_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Selectable, Associations)]

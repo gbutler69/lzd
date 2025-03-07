@@ -21,17 +21,32 @@ pub enum Error {
     StoredPassPhraseUnableToParse(password_hash::Error),
     #[error("Unable to verify Pass Phrase: {0}")]
     PassPhraseUnableToVerify(password_hash::Error),
+    #[error("Unable to verify Pass Phrase: {0}")]
+    AsyncJoinError(#[from] tokio::task::JoinError),
+    #[error("Invalid encrypted data and nonce")]
+    InvalidEncryptedDataAndNonce,
+    #[error("ID Decoding: {0}")]
+    IdDecode(cryptid_rs::Error),
 }
 
 pub struct Cipher {
     master: Aes256GcmSiv,
+    id_encoder: cryptid_rs::Codec,
 }
 
 impl Cipher {
-    pub fn from_base64_encoded(secret: &str) -> Result<Cipher, Error> {
-        let key = STANDARD_NO_PAD.decode(secret.as_bytes())?;
+    pub fn from_base64_encoded_secrets(
+        master_cipher_secret: &str,
+        id_encoder_secret: &str,
+    ) -> Result<Cipher, Error> {
         Ok(Cipher {
-            master: Aes256GcmSiv::new_from_slice(&key)?,
+            master: Aes256GcmSiv::new_from_slice(
+                &STANDARD_NO_PAD.decode(master_cipher_secret.as_bytes())?,
+            )?,
+            id_encoder: cryptid_rs::Codec::new(
+                "id",
+                &cryptid_rs::Config::new(&STANDARD_NO_PAD.decode(id_encoder_secret.as_bytes())?),
+            ),
         })
     }
 
@@ -93,12 +108,51 @@ impl Cipher {
         encrypted_content.extend_from_slice(nonce.as_slice());
         Ok(encrypted_content)
     }
+
+    pub fn decrypt(&self, encrypted_content: &[u8]) -> Result<Vec<u8>, Error> {
+        let Some((encrypted_content, nonce)) = encrypted_content.split_last_chunk::<12>() else {
+            return Err(Error::InvalidEncryptedDataAndNonce);
+        };
+        let nonce = GenericArray::from_slice(nonce);
+        self.master
+            .decrypt(nonce, encrypted_content)
+            .map_err(|err| Error::EncryptionDecryption(err))
+    }
+
+    pub fn decrypt_with_secret(
+        &self,
+        secret: &[u8],
+        encrypted_content: &[u8],
+    ) -> Result<Vec<u8>, Error> {
+        let Some((encrypted_content, nonce)) = encrypted_content.split_last_chunk::<12>() else {
+            return Err(Error::InvalidEncryptedDataAndNonce);
+        };
+        let nonce = GenericArray::from_slice(nonce);
+        let cipher = Aes256GcmSiv::new(GenericArray::from_slice(secret));
+        cipher
+            .decrypt(nonce, encrypted_content)
+            .map_err(|err| Error::EncryptionDecryption(err))
+    }
+
+    pub fn encode_id(&self, id: i32) -> String {
+        let id = (id as u32) as u64;
+        self.id_encoder.encode(id)
+    }
+
+    #[expect(dead_code)]
+    pub fn decode_id(&self, encoded_id: &str) -> Result<i32, Error> {
+        let id = (self
+            .id_encoder
+            .decode(encoded_id)
+            .map_err(|err| Error::IdDecode(err))? as u32) as i32;
+        Ok(id)
+    }
 }
 
 impl std::fmt::Debug for Cipher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Cipher")
-            .field("master", &"redacted")
+            .field("master", &">>redacted<<")
             .finish()
     }
 }

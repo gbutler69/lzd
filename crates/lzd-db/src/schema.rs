@@ -113,9 +113,13 @@ pub mod lzd {
         lzd.user_email (id) {
             id -> Int4,
             user_id -> Int4,
+            email_type_id -> Int4,
             /// The email address in an application managed encrypted form for privacy - it is impossible to look-up a user by e-mail address due to this encryption
             encrypted_email_address -> Bytea,
-            email_type_id -> Int4,
+            /// True if the email address has been validated, False if validation email sent but not responded to. Null if unchecked
+            valid -> Nullable<Bool>,
+            /// Null if unchecked. Populated once email sent to user for validation.
+            validation_id -> Nullable<Int4>,
             created -> Timestamptz,
             updated -> Timestamptz,
             updated_by_user -> Int4,

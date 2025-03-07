@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block title %}Main{% endblock %}
+
+{% block content %}
+<ul>
+    {% for message in messages %}
+    <li>
+        <span><strong>{{ message }}</strong></span>
+    </li>
+    {% endfor %}
+</ul>
+
+{% if logged_in %}
+<div style="text-align:right;width:100%"><a href="/logout">Log-Out</a></div>
+{% else %}
+<div style="text-align:right;width:100%"><a href="/login">Log-In</a></div>
+{% endif %}
+
+<h1>Main Application</h1>
+
+{% endblock %}

@@ -22,7 +22,7 @@ create table if not exists lzd.customer_type (
 
 comment on table lzd.customer_type is 'Contains the list of available Customer Types (e.g. Individual, Organization, etc.)';
 
-insert into lzd.customer_type 
+insert into lzd.customer_type
 	( name, created, updated )
 values
 	( 'Individual', now(), now() ),
@@ -37,7 +37,7 @@ create table if not exists lzd.email_type (
 
 comment on table lzd.email_type is 'Contains the list of available Email Types (e.g. Home, Work, Primary, etc.)';
 
-insert into lzd.email_type 
+insert into lzd.email_type
 	( name, created, updated )
 values
 	( 'Primary', now(), now() ),
@@ -53,7 +53,7 @@ create table if not exists lzd.organization_type (
 
 comment on table lzd.organization_type is 'Contains the list of available Organization Types (e.g. LLC, S-Corp, Corporation, Non-Governmental Organization (NGO), etc.)';
 
-insert into lzd.organization_type 
+insert into lzd.organization_type
 	( name, created, updated )
 values
 	( 'Corporation', now(), now() );
@@ -67,7 +67,7 @@ create table if not exists lzd.phone_type (
 
 comment on table lzd.phone_type is 'Contains the list of available Phone Types (e.g. Home, Work, Mobile, etc.)';
 
-insert into lzd.phone_type 
+insert into lzd.phone_type
 	( name, created, updated )
 values
 	( 'Primary', now(), now() ),
@@ -86,8 +86,10 @@ create table if not exists lzd.user (
 	pass_phrase varchar(1024) not null,
 	secret bytea not null,
 	created timestamp with time zone not null,
-	updated timestamp with time zone not null	
+	updated timestamp with time zone not null
 );
+
+create unique index if not exists ux_user_lower_logon_name on lzd.user ( lower(logon_name) );
 
 comment on table lzd.user is 'Contains all the users able to access the system - including service/system/admin users';
 comment on column lzd.user.logon_name is 'Contains the unencrypted logon name of the user - the user will not be able to accesss the system if they lose or forget their user logon name';
@@ -111,22 +113,29 @@ comment on column lzd.user_password_reset.uuid is 'The UUID corresponding to the
 create table if not exists lzd.user_email (
 	id serial primary key,
 	user_id integer not null,
-	encrypted_email_address bytea not null,
 	email_type_id integer not null,
+	encrypted_email_address bytea not null,
+	valid boolean null,
+	validation_id integer null,
 	created timestamp with time zone not null,
-	updated timestamp with time zone not null,	
+	updated timestamp with time zone not null,
 	updated_by_user integer not null,
 	constraint fk_user_email_user foreign key (user_id) references lzd.user (id),
-	constraint fk_user_email_email_type foreign key (email_type_id) references lzd.email_type (id)
+	constraint fk_user_email_email_type foreign key (email_type_id) references lzd.email_type (id),
+	constraint ck_user_email_validatiopn check (valid is null and validation_id is null) or (valid is not null and validation_id is not null)
 );
 
 create index if not exists ix_user_email_ubu on lzd.user_email ( updated_by_user );
+create unique index if not exists ux_user_email_user_email_type on lzd.user_email ( user_id, email_type_id );
+create index if not exists ix_user_email_validation on lzd.user_email ( validation_id nulls first, valid nulls first );
 
 comment on table lzd.user_email is 'Contains the the e-mail addresses of all the users - a user can have more than one e-mail address';
 comment on column lzd.user_email.encrypted_email_address is 'The email address in an application managed encrypted form for privacy - it is impossible to look-up a user by e-mail address due to this encryption';
+comment on column lzd.user_email.valid is 'True if the email address has been validated, False if validation email sent but not responded to. Null if unchecked';
+comment on column lzd.user_email.validation_id is 'Null if unchecked. Populated once email sent to user for validation.';
 
 --
--- Customer Tables 
+-- Customer Tables
 --
 
 create table if not exists lzd.customer (
@@ -155,7 +164,7 @@ create table if not exists lzd.person (
 	created timestamp with time zone not null,
 	updated timestamp with time zone not null,
 	updated_by_user integer not null,
-	constraint fk_person_user_by foreign key (updated_by_user) references lzd.user (id)	
+	constraint fk_person_user_by foreign key (updated_by_user) references lzd.user (id)
 );
 
 create index if not exists ix_person_ubu on lzd.person ( updated_by_user );
