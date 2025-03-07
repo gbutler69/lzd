@@ -28,6 +28,7 @@ impl Jobs {
         self.run_email_verifier(cancellation_token).await
     }
 
+    #[tracing::instrument(skip(self, cancellation_token))]
     async fn run_email_verifier(&self, cancellation_token: CancellationToken) -> Result<(), Error> {
         use email_verification::*;
         use tokio::time::sleep;
@@ -42,7 +43,7 @@ impl Jobs {
                 .await
             {
                 Ok(SendOutcome::Completed(stats)) => {
-                    println!("Send Email Statistics: {stats:?}");
+                    tracing::info!("Send Email Statistics: {stats:?}");
                     if !stats.errors.is_empty() && stats.sent == 0 {
                         tokio::select! {
                             _ = cancellation_token.cancelled() => (),
@@ -56,11 +57,11 @@ impl Jobs {
                     }
                 }
                 Ok(SendOutcome::Canceled(stats)) => {
-                    println!("Send Email Statistics: {stats:?}");
+                    tracing::info!("Send Email Statistics: {stats:?}");
                     break;
                 }
                 Err(err) => {
-                    println!("Send Email Error: {err:?}");
+                    tracing::error!("Send Email Error: {err:?}");
                     tokio::select! {
                         _ = cancellation_token.cancelled() => (),
                         _ = sleep(self.config.email_verification.error_sleep) => ()

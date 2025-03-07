@@ -14,6 +14,7 @@ pub mod main {
         logged_in: bool,
     }
 
+    #[tracing::instrument(skip(messages, auth_session))]
     pub async fn get(messages: Messages, auth_session: AuthSession<BackEnd>) -> impl IntoResponse {
         Html(
             RegisterTemplate {

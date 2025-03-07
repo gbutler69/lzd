@@ -34,6 +34,7 @@ impl Sender {
         }
     }
 
+    #[tracing::instrument(skip(self, cancellation_token))]
     pub async fn send_verification_emails(
         &self,
         cancellation_token: CancellationToken,
@@ -72,6 +73,7 @@ impl Sender {
         Ok(SendOutcome::Completed(send_stats))
     }
 
+    #[tracing::instrument(skip(self, cancellation_token))]
     async fn record_and_send_verification_email(
         &self,
         cancellation_token: CancellationToken,
@@ -101,6 +103,7 @@ impl Sender {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     async fn send_email(
         &self,
         logon_name: &str,

@@ -10,6 +10,13 @@ pub struct Config {
     pub id_encoder_secret: String,
     pub database: lzd_db::Config,
     pub jobs: jobs::Config,
+    pub tracing: TracingConfig,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct TracingConfig {
+    pub console: bool,
 }
 
 pub fn load() -> anyhow::Result<Config> {

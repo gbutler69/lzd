@@ -18,6 +18,7 @@ pub async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
     let cancellation_token = CancellationToken::new();
     let config = config::load().context("loading configuration")?;
+    setup_tracing(&config.tracing)?;
     let cipher = Arc::new(
         cipher::Cipher::from_base64_encoded_secrets(
             &config.master_secret,
@@ -43,6 +44,25 @@ pub async fn main() -> anyhow::Result<()> {
     let (web_server, background_jobs) = tokio::join!(web_server, background_jobs);
     web_server??;
     Ok(background_jobs??)
+}
+
+fn setup_tracing(config: &config::TracingConfig) -> anyhow::Result<()> {
+    use tracing_subscriber::fmt::format::FmtSpan;
+    if config.console {
+        console_subscriber::init();
+    } else {
+        let subscriber_builder = tracing_subscriber::fmt()
+            .with_ansi(true)
+            .with_level(true)
+            .with_span_events(FmtSpan::FULL)
+            .with_file(true)
+            .with_line_number(true)
+            .with_thread_ids(true)
+            .with_target(true);
+        let subscriber = subscriber_builder.finish();
+        tracing::subscriber::set_global_default(subscriber)?;
+    };
+    Ok(())
 }
 
 async fn create_and_start_web_server(

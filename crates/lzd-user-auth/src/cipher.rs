@@ -50,6 +50,7 @@ impl Cipher {
         })
     }
 
+    #[tracing::instrument(skip(self, pass_phrase))]
     pub fn hash_passphrase(&self, pass_phrase: &[u8]) -> Result<String, Error> {
         let salt = SaltString::generate(&mut argon2::password_hash::rand_core::OsRng);
         Argon2::default()
@@ -58,6 +59,7 @@ impl Cipher {
             .map_err(|err| Error::Hash(err))
     }
 
+    #[tracing::instrument(skip(self, pass_phrase))]
     pub fn verify_pass_phrase(
         &self,
         pass_phrase: &str,
@@ -76,6 +78,7 @@ impl Cipher {
         }
     }
 
+    #[tracing::instrument(skip(self, content))]
     pub fn encrypt_content_with_new_key_and_supply_encrypted_content_and_key(
         &self,
         content: &[u8],
@@ -96,6 +99,7 @@ impl Cipher {
         })
     }
 
+    #[tracing::instrument(skip(self, key, content))]
     fn encrypt_with_unencrypted_key(&self, key: &[u8], content: &[u8]) -> Result<Vec<u8>, Error> {
         let key = GenericArray::from_slice(key);
         let mut nonce = [0; 12];
@@ -109,6 +113,7 @@ impl Cipher {
         Ok(encrypted_content)
     }
 
+    #[tracing::instrument(skip(self, encrypted_content))]
     pub fn decrypt(&self, encrypted_content: &[u8]) -> Result<Vec<u8>, Error> {
         let Some((encrypted_content, nonce)) = encrypted_content.split_last_chunk::<12>() else {
             return Err(Error::InvalidEncryptedDataAndNonce);
@@ -119,6 +124,7 @@ impl Cipher {
             .map_err(|err| Error::EncryptionDecryption(err))
     }
 
+    #[tracing::instrument(skip(self, secret, encrypted_content))]
     pub fn decrypt_with_secret(
         &self,
         secret: &[u8],
@@ -134,12 +140,14 @@ impl Cipher {
             .map_err(|err| Error::EncryptionDecryption(err))
     }
 
+    #[tracing::instrument(skip(self, id))]
     pub fn encode_id(&self, id: i32) -> String {
         let id = (id as u32) as u64;
         self.id_encoder.encode(id)
     }
 
-    #[expect(dead_code)]
+    #[tracing::instrument(skip(self, encoded_id))]
+    #[allow(dead_code)]
     pub fn decode_id(&self, encoded_id: &str) -> Result<i32, Error> {
         let id = (self
             .id_encoder

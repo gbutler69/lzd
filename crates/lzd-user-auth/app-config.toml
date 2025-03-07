@@ -17,3 +17,6 @@ smtp-connect-timeout = "5 seconds"
 smtp-implicit-tls = true
 smtp-user-name = ""
 smtp-password = ""
+
+[tracing]
+console = false

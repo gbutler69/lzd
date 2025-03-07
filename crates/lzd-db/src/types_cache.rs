@@ -20,6 +20,7 @@ impl Cache {
         }
     }
 
+    #[tracing::instrument(skip(self, conn))]
     pub(crate) async fn populate(
         &self,
         mut conn: mobc::Connection<AsyncDieselConnectionManager<AsyncPgConnection>>,
@@ -96,6 +97,7 @@ macro_rules! impl_type_name {
         Enum $enum_type:ty, Table $table_name:ident, Model $model_name:ident; $($variant:ident => $name:expr),+
     } => {
         impl $enum_type {
+            #[tracing::instrument(skip(conn))]
             async fn load_from_db(
                 conn: &mut mobc::Connection<AsyncDieselConnectionManager<AsyncPgConnection>>,
             ) -> Result<HashMap<$enum_type, i32>, Error> {

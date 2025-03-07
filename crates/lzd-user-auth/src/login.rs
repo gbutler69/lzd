@@ -83,6 +83,7 @@ impl AuthnBackend for BackEnd {
     type Credentials = Credentials;
     type Error = Error;
 
+    #[tracing::instrument(skip(self, credentials), fields(logon_name = credentials.logon_name))]
     async fn authenticate(
         &self,
         credentials: Self::Credentials,
@@ -102,6 +103,7 @@ impl AuthnBackend for BackEnd {
             .map_err(Into::into)
     }
 
+    #[tracing::instrument(skip(self))]
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         self.db
             .load_user_by_id(*user_id)
@@ -129,6 +131,7 @@ pub mod register_new_user {
         repeat_email: String,
     }
 
+    #[tracing::instrument(skip(messages))]
     pub async fn get(messages: Messages) -> impl IntoResponse {
         Html(
             RegisterTemplate {
@@ -139,6 +142,7 @@ pub mod register_new_user {
         )
     }
 
+    #[tracing::instrument(skip(messages, app_state, pass_phrase, repeat_pass_phrase))]
     pub async fn post(
         mut messages: Messages,
         State(app_state): State<crate::AppState>,
@@ -275,6 +279,7 @@ pub mod register_new_user {
         (messages, valid)
     }
 
+    #[tracing::instrument()]
     async fn email_nonexistent_or_suspicious(email: &str) -> bool {
         use check_if_email_exists::*;
         let result = check_email(&CheckEmailInput::new(email.to_owned())).await;
@@ -297,6 +302,7 @@ pub mod login {
         next: Option<String>,
     }
 
+    #[tracing::instrument(skip(messages))]
     pub async fn get(
         messages: Messages,
         Query(NextUrl { next }): Query<NextUrl>,
@@ -311,6 +317,7 @@ pub mod login {
         )
     }
 
+    #[tracing::instrument(skip(auth_session, messages, creds), fields( logon_name = creds.logon_name))]
     pub async fn post(
         mut auth_session: AuthSession<BackEnd>,
         messages: Messages,
@@ -346,6 +353,7 @@ pub mod login {
 pub mod logout {
     use super::*;
 
+    #[tracing::instrument(skip(auth_session))]
     pub async fn get(mut auth_session: AuthSession<BackEnd>) -> impl IntoResponse {
         match auth_session.logout().await {
             Ok(_) => Redirect::to("/").into_response(),

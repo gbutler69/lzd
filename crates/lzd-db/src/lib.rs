@@ -92,6 +92,7 @@ impl Store {
         self.pool.get().await.map_err(Into::into)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn load_user_by_logon_name(&self, name: &str) -> Result<Option<models::User>, Error> {
         use schema::lzd::user::dsl::*;
         use sql_functions::lower;
@@ -108,6 +109,7 @@ impl Store {
         }
     }
 
+    #[tracing::instrument(skip(self, user_id))]
     pub async fn load_user_by_id(&self, user_id: i32) -> Result<Option<models::User>, Error> {
         use schema::lzd::user::dsl::*;
         let mut conn = self.connection().await?;
@@ -123,6 +125,12 @@ impl Store {
         }
     }
 
+    #[tracing::instrument(skip(
+        self,
+        hashed_pass_phrase,
+        encrypted_email_address,
+        encrypted_secret
+    ))]
     pub async fn register_user(
         &self,
         user_name: String,
@@ -182,6 +190,7 @@ impl Store {
             .map_err(Into::into)
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn list_unverified_user_emails(
         &self,
     ) -> Result<Vec<(models::UserMainFields, models::UserEmailMainFields)>, Error> {
@@ -203,6 +212,7 @@ impl Store {
         Ok(unverified_emails)
     }
 
+    #[tracing::instrument(skip(self, callback))]
     pub async fn record_verification_email<'a, F>(
         &self,
         email_id: i32,

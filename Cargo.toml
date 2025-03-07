@@ -22,6 +22,7 @@ async-trait = "0.1.87"
 axum = "0.8.1"
 base64 = "0.22.1"
 check-if-email-exists = "0.9.1"
+console-subscriber = "0.4.1"
 cryptid-rs = "0.1.2"
 crypto-common = "0.1.6"
 dotenvy = "0.15.7"
@@ -29,7 +30,7 @@ email_address = "0.2.9"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 itertools = "0.14.0"
-jiff = "0.2.1"
+jiff = "0.2.3"
 mail-builder = "0.4.1"
 mail-parser = "0.10.2"
 mail-send = "0.5.0"
@@ -43,6 +44,7 @@ tokio = { version = "1.43.0", features = [
     "macros",
     "rt-multi-thread",
     "signal",
+    "tracing",
 ] }
 tokio-util = "0.7.13"
 toml = "0.8.20"
