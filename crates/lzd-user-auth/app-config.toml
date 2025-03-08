@@ -1,4 +1,5 @@
-bind-address = "localhost:3000"
+bind-address = "localhost"
+bind-port = 3000
 master-secret = "1kY4Zcx/Np74XZnI/G8h1vq74NwrtpLF3PW96g9RWo0"
 id-encoder-secret = "VGhpcyBpcyBhIFQzc3QhCg"
 
@@ -11,10 +12,11 @@ max-idle-lifetime = "15 minutes"
 timeout-for-get = "30 seconds"
 
 [jobs.email-verification]
+run = true
 sleep = "15 seconds"
-error-sleep = "60 seconds"
+error-sleep = "180 seconds"
 smtp-connect-timeout = "5 seconds"
-smtp-implicit-tls = true
+smtp-implicit-tls = false
 smtp-user-name = ""
 smtp-password = ""
 

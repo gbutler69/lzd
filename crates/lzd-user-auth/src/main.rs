@@ -33,10 +33,12 @@ pub async fn main() -> anyhow::Result<()> {
         config.jobs.clone(),
         cipher.clone(),
         store.clone(),
+        format!("{}:{}", config.bind_address, config.bind_port),
         cancellation_token.clone(),
     ));
     let web_server = tokio::spawn(create_and_start_web_server(
         config.bind_address.clone(),
+        config.bind_port,
         cipher,
         store,
         cancellation_token,
@@ -67,6 +69,7 @@ fn setup_tracing(config: &config::TracingConfig) -> anyhow::Result<()> {
 
 async fn create_and_start_web_server(
     bind_address: String,
+    bind_port: u16,
     cipher: Arc<cipher::Cipher>,
     store: lzd_db::Store,
     cancellation_token: CancellationToken,
@@ -82,7 +85,7 @@ async fn create_and_start_web_server(
         )
         .build(),
     );
-    let listener = tokio::net::TcpListener::bind(bind_address)
+    let listener = tokio::net::TcpListener::bind(format!("{bind_address}:{bind_port}"))
         .await
         .context("binding listener")?;
     Ok(axum::serve(listener, router)
@@ -125,9 +128,10 @@ async fn create_and_run_background_jobs(
     config: jobs::Config,
     cipher: Arc<cipher::Cipher>,
     store: lzd_db::Store,
+    app_host_port: String,
     cancellation_token: CancellationToken,
 ) -> anyhow::Result<()> {
-    let jobs = jobs::create(config, cipher, store);
+    let jobs = jobs::create(config, cipher, store, app_host_port);
     Ok(jobs.run(cancellation_token).await?)
 }
 

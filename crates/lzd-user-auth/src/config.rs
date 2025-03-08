@@ -6,6 +6,7 @@ use std::io::Read;
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
     pub bind_address: String,
+    pub bind_port: u16,
     pub master_secret: String,
     pub id_encoder_secret: String,
     pub database: lzd_db::Config,

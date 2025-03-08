@@ -10,7 +10,7 @@
     </li>
     {% endfor %}
 </ul>
-<form method="post">
+<form method="post" autocomplete="off">
     <fieldset>
         <legend>Create New Account</legend>
         <p>
@@ -31,13 +31,13 @@
         </p>
         <p>
             <label for="email" title="Enter your Email Address">Email Address</label>
-            <input name="email" id="email" />
+            <input name="email" id="email" type="email" />
         </p>
         <p>
             <label for="repeat_email" title="Re-Enter your Email Address to ensure you've entered it correctly">Re-Enter
                 Email Address
                 (for confirmation)</label>
-            <input name="repeat_email" id="repeat_email" />
+            <input name="repeat_email" id="repeat_email" type="email" />
         </p>
         <input type="submit" value="Register" />
         <p>

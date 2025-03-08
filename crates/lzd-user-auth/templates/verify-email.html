@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Email{% endblock %}
+
+{% block content %}
+<form method="post" action="/verify-email" autocomplete="off">
+    <fieldset>
+        <legend>Verify Email</legend>
+        <p>
+            <label for="verification_code">Verification Code</label>
+            <input name="verification_code" id="verification_code" type="text" pattern="^[1-9][0-9]{7}$"
+                title="enter the 8-digit verification code you received in the email we sent you" />
+        </p>
+        <input type="submit" value="Verify" />
+    </fieldset>
+    <input type="hidden" name="encoded_email_id" value="{{email_id}}" />
+</form>
+{% endblock %}

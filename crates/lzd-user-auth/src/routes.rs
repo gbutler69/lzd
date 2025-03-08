@@ -1,6 +1,6 @@
 use super::{
     application::main,
-    login::{login, logout, register_new_user, BackEnd},
+    login::{login, logout, register_new_user, verify_email, BackEnd},
 };
 use axum::routing::{get, post};
 use axum_login::{login_required, tower_sessions::MemoryStore, AuthManagerLayer};
@@ -12,6 +12,8 @@ pub(super) fn setup(
 ) -> axum::routing::Router {
     axum::Router::new()
         .route("/main", get(main::get))
+        .route("/verify-email/{email_id}", get(verify_email::get))
+        .route("/verify-email", post(verify_email::post))
         .route_layer(login_required!(BackEnd, login_url = "/login"))
         .route("/", get(main::get))
         .route("/register", post(register_new_user::post))

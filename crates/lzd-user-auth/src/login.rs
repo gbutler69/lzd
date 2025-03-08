@@ -1,7 +1,7 @@
 use crate::cipher::{Cipher, EncryptedContentAndKey};
 use askama_axum::Template;
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     response::{Html, IntoResponse, Redirect},
     Form,
 };
@@ -190,7 +190,11 @@ pub mod register_new_user {
                     )
                     .await
                 {
-                    Ok((_, _)) => Redirect::to("/main").into_response(),
+                    Ok((_, user_email)) => {
+                        let encoded_email_id = app_state.cipher.encode_id(user_email.id);
+                        Redirect::to(&format!("/login?next=/verify-email/{encoded_email_id}"))
+                            .into_response()
+                    }
                     Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
                 }
             }
@@ -358,6 +362,68 @@ pub mod logout {
         match auth_session.logout().await {
             Ok(_) => Redirect::to("/").into_response(),
             Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        }
+    }
+}
+
+pub mod verify_email {
+    use super::*;
+
+    #[derive(Template)]
+    #[template(path = "verify-email.html")]
+    pub struct VerifyEmailTemplate<'a> {
+        email_id: &'a str,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct VerifyEmailForm {
+        encoded_email_id: String,
+        verification_code: i32,
+    }
+
+    #[tracing::instrument()]
+    pub async fn get(Path(email_id): Path<String>) -> impl IntoResponse {
+        Html(
+            VerifyEmailTemplate {
+                email_id: email_id.as_str(),
+            }
+            .render()
+            .unwrap(),
+        )
+    }
+
+    #[tracing::instrument(skip(app_state))]
+    pub async fn post(
+        messages: Messages,
+        State(app_state): State<crate::AppState>,
+        Form(VerifyEmailForm {
+            encoded_email_id,
+            verification_code,
+        }): Form<VerifyEmailForm>,
+    ) -> impl IntoResponse {
+        let email_id = match app_state.cipher.decode_id(&encoded_email_id) {
+            Ok(email_id) => email_id,
+            Err(err) => {
+                tracing::error!("decoding email ID: {err:?}");
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        };
+        match app_state
+            .store
+            .add_email_verification(email_id, verification_code)
+            .await
+        {
+            Ok(_) => Redirect::to("/main").into_response(),
+            Err(lzd_db::Error::NotFound) => {
+                messages.error("invalid validation code");
+                Redirect::to(&format!("/verify-email/{encoded_email_id}")).into_response()
+            }
+            Err(err) => {
+                tracing::error!(
+                    "unable to validate email address: {encoded_email_id} {verification_code} - {err:?}"
+                );
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
         }
     }
 }

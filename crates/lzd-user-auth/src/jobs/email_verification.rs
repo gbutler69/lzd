@@ -8,6 +8,7 @@ use crate::cipher;
 #[derive(Clone, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Config {
+    pub run: bool,
     #[serde(with = "humantime_serde")]
     pub sleep: Duration,
     #[serde(with = "humantime_serde")]
@@ -23,14 +24,21 @@ pub struct Sender {
     cipher: Arc<crate::cipher::Cipher>,
     store: lzd_db::Store,
     config: Config,
+    app_host_port: String,
 }
 
 impl Sender {
-    pub fn new(cipher: Arc<crate::cipher::Cipher>, store: lzd_db::Store, config: Config) -> Self {
+    pub fn new(
+        cipher: Arc<crate::cipher::Cipher>,
+        store: lzd_db::Store,
+        config: Config,
+        app_host_port: String,
+    ) -> Self {
         Self {
             cipher,
             store,
             config,
+            app_host_port,
         }
     }
 
@@ -59,6 +67,7 @@ impl Sender {
                     &user.logon_name,
                     email.id,
                     &email_address,
+                    &self.app_host_port,
                 )
                 .await
             {
@@ -80,6 +89,7 @@ impl Sender {
         logon_name: &str,
         email_id: i32,
         email_address: &str,
+        app_host_port: &str,
     ) -> Result<(), SendEmailError> {
         let validation_id = rand::random_range(1111_1111..=9999_9999);
         if cancellation_token.is_cancelled() {
@@ -92,8 +102,14 @@ impl Sender {
         match self
             .store
             .record_verification_email(email_id, validation_id, || {
-                self.send_email(logon_name, email_address, &encoded_email_id, validation_id)
-                    .scope_boxed()
+                self.send_email(
+                    logon_name,
+                    email_address,
+                    &encoded_email_id,
+                    validation_id,
+                    app_host_port,
+                )
+                .scope_boxed()
             })
             .await
         {
@@ -110,6 +126,7 @@ impl Sender {
         email_address: &str,
         encoded_email_id: &str,
         validation_id: i32,
+        app_host_port: &str,
     ) -> Result<(), String> {
         let email = mail_builder::MessageBuilder::new()
             .subject("Account Email Confirmation")
@@ -121,6 +138,7 @@ impl Sender {
                     user_name: logon_name,
                     encoded_email_id,
                     validation_id,
+                    app_host_port,
                 }
                 .render()
                 .map_err(|err| format!("Template Error: {err:?}"))?,
@@ -130,18 +148,18 @@ impl Sender {
                     user_name: logon_name,
                     encoded_email_id,
                     validation_id,
+                    app_host_port,
                 }
                 .render()
                 .map_err(|err| format!("Template Error: {err:?}"))?,
             );
         mail_send::SmtpClientBuilder::new("smtp.gmail.com", 587)
-            .implicit_tls(false)
+            .implicit_tls(self.config.smtp_implicit_tls)
             .credentials((
                 self.config.smtp_user_name.as_str(),
                 self.config.smtp_password.as_str(),
             ))
             .timeout(self.config.smtp_connect_timeout)
-            .implicit_tls(self.config.smtp_implicit_tls)
             .connect()
             .await
             .map_err(|err| format!("Connecting to SMTP Server: {err:?}"))?
@@ -218,6 +236,7 @@ pub struct EmailTextTemplate<'a> {
     user_name: &'a str,
     encoded_email_id: &'a str,
     validation_id: i32,
+    app_host_port: &'a str,
 }
 
 #[derive(Template)]
@@ -226,4 +245,5 @@ pub struct EmailHtmlTemplate<'a> {
     user_name: &'a str,
     encoded_email_id: &'a str,
     validation_id: i32,
+    app_host_port: &'a str,
 }

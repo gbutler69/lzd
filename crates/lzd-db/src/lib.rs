@@ -28,6 +28,8 @@ pub enum Error {
     OtherGeneral(String),
     #[error("Skipped")]
     Skipped,
+    #[error("Not Found")]
+    NotFound,
 }
 
 #[derive(Clone, Debug)]
@@ -223,8 +225,7 @@ impl Store {
         F: FnOnce() -> ScopedBoxFuture<'a, 'a, Result<(), String>> + Send + 'a,
     {
         let now: jiff_diesel::Timestamp = jiff::Timestamp::now().into();
-        let result = self
-            .connection()
+        self.connection()
             .await?
             .transaction(move |mut conn| {
                 use schema::lzd::user_email;
@@ -252,7 +253,42 @@ impl Store {
                 }
                 .scope_boxed()
             })
-            .await;
-        result
+            .await
+    }
+
+    #[tracing::instrument(skip(self, email_id))]
+    pub async fn add_email_verification(
+        &self,
+        email_id: i32,
+        validation_id: i32,
+    ) -> Result<(), Error> {
+        let now: jiff_diesel::Timestamp = jiff::Timestamp::now().into();
+        self.connection()
+            .await?
+            .transaction(move |mut conn| {
+                use schema::lzd::user_email;
+                async move {
+                    match diesel::update(user_email::table)
+                        .filter(
+                            user_email::id
+                                .eq(email_id)
+                                .and(user_email::validation_id.eq(validation_id)),
+                        )
+                        .set((
+                            user_email::valid.eq(true),
+                            user_email::updated.eq(now),
+                            user_email::updated_by_user.eq(user_email::user_id),
+                        ))
+                        .execute(&mut conn)
+                        .await
+                    {
+                        Ok(0) => Err(Error::NotFound),
+                        Ok(_) => Ok(()),
+                        Err(err) => Err(err.into()),
+                    }
+                }
+                .scope_boxed()
+            })
+            .await
     }
 }

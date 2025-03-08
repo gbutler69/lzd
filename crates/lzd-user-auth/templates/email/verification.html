@@ -6,11 +6,11 @@
 <p>Hello {{user_name}},</p>
 
 <p>In order to verify your email address you must enter the following code at the prompt in your browser:
-    <b>{{validation_id}}</b>.
+    [<b style="font-size: larger;">{{validation_id}}</b>].
 </p>
 
 <p>If you have navigated away from the prompt within your browser, then click
-    <a href="http:/localhost/verify-email/{{encoded_email_id}}">here</a> to be
+    <a href="http:/{{app_host_port}}/verify-email/{{encoded_email_id}}"><b style="font-size: larger;">here</b></a> to be
     prompted for the verification code above.
 </p>
 
