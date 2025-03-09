@@ -127,7 +127,7 @@ create table if not exists lzd.user_email (
 
 create index if not exists ix_user_email_ubu on lzd.user_email ( updated_by_user );
 create unique index if not exists ux_user_email_user_email_type on lzd.user_email ( user_id, email_type_id );
-create index if not exists ix_user_email_validation on lzd.user_email ( validation_id nulls first, valid nulls first );
+create index if not exists ix_user_email_validation on lzd.user_email ( validation_id nulls first, valid nulls first ) where validation_id is null and valid is null;
 
 comment on table lzd.user_email is 'Contains the the e-mail addresses of all the users - a user can have more than one e-mail address';
 comment on column lzd.user_email.encrypted_email_address is 'The email address in an application managed encrypted form for privacy - it is impossible to look-up a user by e-mail address due to this encryption';
